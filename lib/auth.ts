@@ -45,8 +45,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account?.provider === "google" && user.email) {
         const supabaseAdmin = getSupabaseAdmin()
 
+        const { data: existing } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("email", user.email)
+          .single()
+
+        const isNew = !existing
+
         await supabaseAdmin.from("users").upsert(
-          { email: user.email, name: user.name, avatar_url: user.image },
+          { 
+            email: user.email, 
+            name: user.name, 
+            avatar_url: user.image,
+            ...(isNew && { credits: 1 })
+          },
           { onConflict: "email" }
         )
       }

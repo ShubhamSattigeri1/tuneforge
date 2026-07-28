@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    const { id } = await context.params
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: song, error } = await supabase
+    const { id } = await context.params
+
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: song, error } = await supabaseAdmin
       .from("generations")
       .select("*")
       .eq("id", id)
@@ -22,8 +24,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       return NextResponse.json({ error: "Song not found" }, { status: 404 })
     }
 
-    // Verify ownership
-    const { data: user } = await supabase
+    const { data: user } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", session.user.email)

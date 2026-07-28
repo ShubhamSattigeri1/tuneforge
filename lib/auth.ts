@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
-import { supabase } from "./supabase"
+import { getSupabaseAdmin } from "./supabase"
 import type { DefaultSession } from "next-auth"
 
 declare module "next-auth" {
@@ -23,26 +23,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub
+      if (session.user && session.user.email) {
+        const supabaseAdmin = getSupabaseAdmin()
 
-        const { data } = await supabase
+        const { data } = await supabaseAdmin
           .from("users")
-          .select("credits, subscription_active, subscription_end")
-          .eq("id", token.sub)
+          .select("id, credits, subscription_active, subscription_end")
+          .eq("email", session.user.email)
           .single()
 
-        session.user.credits = data?.credits ?? 0
-        session.user.unlimited = data?.subscription_active ?? false
-        session.user.unlimited_expiry = data?.subscription_end
+        if (data) {
+          session.user.id = data.id
+          session.user.credits = data.credits ?? 0
+          session.user.unlimited = data.subscription_active ?? false
+          session.user.unlimited_expiry = data.subscription_end
+        }
       }
       return session
     },
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
-        await supabase.from("users").upsert(
-          { id: user.id, email: user.email, name: user.name, avatar_url: user.image },
-          { onConflict: "id" }
+        const supabaseAdmin = getSupabaseAdmin()
+
+        await supabaseAdmin.from("users").upsert(
+          { email: user.email, name: user.name, avatar_url: user.image },
+          { onConflict: "email" }
         )
       }
       return true

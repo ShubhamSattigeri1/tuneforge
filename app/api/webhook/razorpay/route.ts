@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { razorpay, PACKS } from "@/lib/razorpay"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 import crypto from "crypto"
 
 export const dynamic = "force-dynamic"
@@ -20,21 +19,21 @@ export async function POST(req: Request) {
     }
 
     const event = JSON.parse(text)
+    const supabaseAdmin = getSupabaseAdmin()
 
-    // Payment captured
     if (event.event === "payment.captured") {
       const payment = event.payload.payment.entity
       const orderId = payment.order_id
       const notes = payment.notes || {}
 
-      const { data: order } = await supabase
+      const { data: order } = await supabaseAdmin
         .from("orders")
         .select("*")
         .eq("razorpay_order_id", orderId)
         .single()
 
       if (order && order.status !== "captured") {
-        await supabase
+        await supabaseAdmin
           .from("orders")
           .update({
             razorpay_payment_id: payment.id,
@@ -42,9 +41,10 @@ export async function POST(req: Request) {
           })
           .eq("razorpay_order_id", orderId)
 
+        const { razorpay: _, PACKS } = await import("@/lib/razorpay")
         const packConfig = PACKS[order.pack as keyof typeof PACKS]
         if (packConfig && packConfig.credits) {
-          await supabase.rpc("add_credits", {
+          await supabaseAdmin.rpc("add_credits", {
             p_user_id: order.user_id,
             p_credits: packConfig.credits,
           })
@@ -52,14 +52,12 @@ export async function POST(req: Request) {
       }
     }
 
-    // Subscription charged
     if (event.event === "subscription.charged") {
       const sub = event.payload.subscription.entity
       const notes = sub.notes || {}
 
       if (notes.pack === "unlimited" && notes.user_id) {
-        // Reset monthly limit or extend subscription
-        await supabase
+        await supabaseAdmin
           .from("users")
           .update({ subscription_active: true, subscription_end: new Date(Date.now() + 30 * 86400000).toISOString() })
           .eq("id", notes.user_id)

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
@@ -11,7 +11,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: user } = await supabase
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: user } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", session.user.email)
@@ -21,7 +22,7 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    const { data: songs, error } = await supabase
+    const { data: songs, error } = await supabaseAdmin
       .from("generations")
       .select("id, title, story, genre, mood, status, created_at, file_url")
       .eq("user_id", user.id)

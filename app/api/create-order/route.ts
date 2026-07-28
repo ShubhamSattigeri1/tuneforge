@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { razorpay, PACKS } from "@/lib/razorpay"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
@@ -18,8 +18,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid pack" }, { status: 400 })
     }
 
-    // Get or create user
-    const { data: user } = await supabase
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: user } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", session.user.email)
@@ -30,7 +30,6 @@ export async function POST(req: Request) {
     }
 
     if (pack === "unlimited") {
-      // Create subscription
       const planId = process.env.RAZORPAY_UNLIMITED_PLAN_ID
       if (!planId) {
         return NextResponse.json({ error: "Subscription plan not configured" }, { status: 500 })
@@ -43,8 +42,7 @@ export async function POST(req: Request) {
         notes: { user_id: user.id, pack: "unlimited" },
       })
 
-      // Save order
-      await supabase.from("orders").insert({
+      await supabaseAdmin.from("orders").insert({
         user_id: user.id,
         razorpay_order_id: subscription.id,
         amount: packConfig.amount,
@@ -57,7 +55,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ id: subscription.id, type: "subscription" })
     }
 
-    // Create one-time order
     const order = await razorpay.orders.create({
       amount: packConfig.amount,
       currency: "INR",
@@ -65,8 +62,7 @@ export async function POST(req: Request) {
       notes: { user_id: user.id, pack },
     })
 
-    // Save order
-    await supabase.from("orders").insert({
+    await supabaseAdmin.from("orders").insert({
       user_id: user.id,
       razorpay_order_id: order.id,
       amount: packConfig.amount,

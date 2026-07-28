@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { razorpay, PACKS } from "@/lib/razorpay"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 import crypto from "crypto"
 
 export const dynamic = "force-dynamic"
@@ -16,7 +16,6 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body
 
-    // Verify signature
     const sign = razorpay_order_id + "|" + razorpay_payment_id
     const expectedSign = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
@@ -27,8 +26,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    // Get order
-    const { data: order } = await supabase
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: order } = await supabaseAdmin
       .from("orders")
       .select("*")
       .eq("razorpay_order_id", razorpay_order_id)
@@ -38,8 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    // Update order
-    await supabase
+    await supabaseAdmin
       .from("orders")
       .update({
         razorpay_payment_id,
@@ -47,10 +45,9 @@ export async function POST(req: Request) {
       })
       .eq("razorpay_order_id", razorpay_order_id)
 
-    // Add credits
     const packConfig = PACKS[order.pack as keyof typeof PACKS]
     if (packConfig && packConfig.credits) {
-      await supabase.rpc("add_credits", {
+      await supabaseAdmin.rpc("add_credits", {
         p_user_id: order.user_id,
         p_credits: packConfig.credits,
       })

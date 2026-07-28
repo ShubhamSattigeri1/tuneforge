@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Story is required" }, { status: 400 })
     }
 
-    // Get user
-    const { data: user } = await supabase
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: user } = await supabaseAdmin
       .from("users")
       .select("id, credits, subscription_active, subscription_end")
       .eq("email", session.user.email)
@@ -28,19 +28,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Check credits (subscription users skip)
     const hasActiveSub = user.subscription_active && new Date(user.subscription_end) > new Date()
     if (!hasActiveSub && (user.credits < 1)) {
       return NextResponse.json({ error: "Not enough credits. Buy more credits in the dashboard." }, { status: 402 })
     }
 
-    // Deduct credit (unless subscription)
     if (!hasActiveSub) {
-      await supabase.rpc("deduct_credit", { p_user_id: user.id })
+      await supabaseAdmin.rpc("deduct_credit", { p_user_id: user.id })
     }
 
-    // Create generation record
-    const { data: generation, error } = await supabase
+    const { data: generation, error } = await supabaseAdmin
       .from("generations")
       .insert({
         user_id: user.id,

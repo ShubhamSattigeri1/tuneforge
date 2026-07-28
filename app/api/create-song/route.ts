@@ -1,0 +1,64 @@
+import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { supabase } from "@/lib/supabase"
+
+export const dynamic = "force-dynamic"
+
+export async function POST(req: Request) {
+  try {
+    const session = await auth()
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { story, genre, mood, tempo, vocals } = await req.json()
+
+    if (!story?.trim()) {
+      return NextResponse.json({ error: "Story is required" }, { status: 400 })
+    }
+
+    // Get user
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, credits, subscription_active, subscription_end")
+      .eq("email", session.user.email)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Check credits (subscription users skip)
+    const hasActiveSub = user.subscription_active && new Date(user.subscription_end) > new Date()
+    if (!hasActiveSub && (user.credits < 1)) {
+      return NextResponse.json({ error: "Not enough credits. Buy more credits in the dashboard." }, { status: 402 })
+    }
+
+    // Deduct credit (unless subscription)
+    if (!hasActiveSub) {
+      await supabase.rpc("deduct_credit", { p_user_id: user.id })
+    }
+
+    // Create generation record
+    const { data: generation, error } = await supabase
+      .from("generations")
+      .insert({
+        user_id: user.id,
+        story,
+        genre,
+        mood,
+        tempo,
+        vocals_mode: vocals,
+        status: "queued",
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json({ id: generation.id }, { status: 201 })
+  } catch (err) {
+    console.error("Create song error:", err)
+    return NextResponse.json({ error: "Failed to create song" }, { status: 500 })
+  }
+}

@@ -52,16 +52,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .single()
 
         const isNew = !existing
+        console.log('[signIn] email:', user.email, 'isNew:', isNew)
 
-        await supabaseAdmin.from("users").upsert(
-          { 
-            email: user.email, 
-            name: user.name, 
-            avatar_url: user.image,
-            ...(isNew && { credits: 1 })
-          },
-          { onConflict: "email" }
-        )
+        const userData = { 
+          email: user.email, 
+          name: user.name, 
+          avatar_url: user.image 
+        }
+        if (isNew) userData.credits = 1
+
+        await supabaseAdmin.from("users").upsert(userData, { onConflict: "email" })
       }
       return true
     },

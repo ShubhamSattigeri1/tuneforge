@@ -1,15 +1,16 @@
 "use client"
 
-import { Play, Pause } from "lucide-react"
+import { Play, Pause, Loader2 } from "lucide-react"
 
 type WaveformProps = {
   playing: boolean
   currentTime: number
   duration: number
   onTogglePlay: () => void
+  loading?: boolean
 }
 
-export function Waveform({ playing, currentTime, duration, onTogglePlay }: WaveformProps) {
+export function Waveform({ playing, currentTime, duration, onTogglePlay, loading }: WaveformProps) {
   const bars = 64
   const progress = duration > 0 ? currentTime / duration : 0
 
@@ -17,9 +18,12 @@ export function Waveform({ playing, currentTime, duration, onTogglePlay }: Wavef
     <div className="flex items-center gap-4">
       <button
         onClick={onTogglePlay}
-        className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity"
+        disabled={loading}
+        className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait"
       >
-        {playing ? (
+        {loading ? (
+          <Loader2 className="w-6 h-6 text-white animate-spin" />
+        ) : playing ? (
           <Pause className="w-6 h-6 text-white" />
         ) : (
           <Play className="w-6 h-6 text-white ml-0.5" />

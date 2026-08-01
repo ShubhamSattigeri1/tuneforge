@@ -34,6 +34,7 @@ export default function SongPage() {
   const [playing, setPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
+  const [audioLoading, setAudioLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -87,10 +88,22 @@ export default function SongPage() {
         setPlaying(false)
         setCurrentTime(0)
       })
+      audioRef.current.addEventListener("waiting", () => setAudioLoading(true))
+      audioRef.current.addEventListener("canplay", () => setAudioLoading(false))
+      audioRef.current.addEventListener("error", () => {
+        setAudioLoading(false)
+        setError("Playback failed — file may be missing")
+      })
     }
 
     if (audioRef.current.paused) {
-      audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
+      setAudioLoading(true)
+      audioRef.current.play().then(() => {
+        setPlaying(true)
+        setAudioLoading(false)
+      }).catch(() => {
+        setAudioLoading(false)
+      })
     } else {
       audioRef.current.pause()
       setPlaying(false)
@@ -122,7 +135,27 @@ export default function SongPage() {
     )
   }
 
-  const isPending = song.status === "pending" || song.status === "generating"
+  const isPending = song.status === "generating" || song.status === "queued"
+
+  if (!isPending && !song.file_url) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
+        <Music className="w-12 h-12 text-muted mb-4" />
+        <h2 className="text-xl font-bold font-[family-name:var(--font-heading)] mb-2">
+          Song file not ready
+        </h2>
+        <p className="text-muted text-sm mb-4">
+          The audio file is still being processed. Please wait a moment and refresh.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-xl gradient-bg text-white text-sm hover:opacity-90"
+        >
+          Refresh
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen px-4 py-8 max-w-3xl mx-auto">
@@ -190,11 +223,24 @@ export default function SongPage() {
           </div>
         ) : (
           <>
+            <audio
+              ref={audioRef}
+              src={song.file_url}
+              onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
+              onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+              onEnded={() => {
+                setPlaying(false)
+                setCurrentTime(0)
+              }}
+              onError={() => setError("Playback failed — file may be missing")}
+              preload="metadata"
+            />
             <Waveform
               playing={playing}
               currentTime={currentTime}
               duration={duration}
               onTogglePlay={togglePlay}
+              loading={audioLoading}
             />
             {song.file_url && (
               <div className="flex items-center gap-4 mt-4 text-sm text-muted">

@@ -73,9 +73,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- User blends table (Genre Blender saved combos)
+CREATE TABLE IF NOT EXISTS user_blends (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  genre TEXT,
+  mood TEXT,
+  instruments TEXT[],
+  production TEXT,
+  blend_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_razorpay_order_id ON orders(razorpay_order_id);
 CREATE INDEX IF NOT EXISTS idx_generations_user_id ON generations(user_id);
 CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(status);
+CREATE INDEX IF NOT EXISTS idx_user_blends_user_id ON user_blends(user_id);

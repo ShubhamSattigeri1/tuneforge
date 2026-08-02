@@ -5,10 +5,27 @@ import { Sparkles, Check } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useCredits } from "@/context/CreditsContext"
+
+type RazorpayResponse = {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+type RazorpayInstance = {
+  open: () => void
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => RazorpayInstance
+  }
+}
 
 function loadCheckoutScript() {
   return new Promise<void>((resolve, reject) => {
-    if ((window as any).Razorpay) {
+    if (window.Razorpay) {
       resolve()
       return
     }
@@ -23,6 +40,7 @@ function loadCheckoutScript() {
 export function PricingCards() {
   const { data: session } = useSession()
   const router = useRouter()
+  const { refreshCredits } = useCredits()
   const [loading, setLoading] = useState<string | null>(null)
 
   useEffect(() => {
@@ -45,6 +63,11 @@ export function PricingCards() {
       })
       const data = await res.json()
 
+      if (!res.ok || !data.id) {
+        alert(data.error || "Failed to start checkout")
+        return
+      }
+
       await loadCheckoutScript()
 
       const options = {
@@ -52,18 +75,26 @@ export function PricingCards() {
         order_id: data.id,
         name: "TuneForge",
         description: `${PACKS[pack as keyof typeof PACKS].label}`,
-        handler: async function (response: any) {
-          await fetch("/api/verify-payment", {
+        handler: async function (response: RazorpayResponse) {
+          const verifyRes = await fetch("/api/verify-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(response),
           })
+          const verifyData = await verifyRes.json()
+
+          if (!verifyRes.ok) {
+            alert(verifyData.error || "Payment could not be verified")
+            return
+          }
+
+          await refreshCredits()
           router.refresh()
         },
         prefill: { email: session.user?.email },
         theme: { color: "#6C28D2" },
       }
-      const rzp = new (window as any).Razorpay(options)
+      const rzp = new window.Razorpay(options)
       rzp.open()
     } catch (err) {
       console.error(err)

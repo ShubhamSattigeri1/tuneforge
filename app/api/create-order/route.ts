@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       notes: { user_id: user.id, pack },
     })
 
-    await supabaseAdmin.from("orders").insert({
+    const { error: insertError } = await supabaseAdmin.from("orders").insert({
       user_id: user.id,
       razorpay_order_id: order.id,
       amount: packConfig.amount,
@@ -45,6 +45,14 @@ export async function POST(req: Request) {
       status: "created",
       type: "one_time",
     })
+
+    if (insertError) {
+      console.error("Insert order error:", insertError)
+      return NextResponse.json(
+        { error: `Failed to save order: ${insertError.message}` },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ id: order.id, amount: order.amount })
   } catch (err) {

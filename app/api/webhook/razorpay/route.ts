@@ -25,7 +25,6 @@ export async function POST(req: Request) {
     if (event.event === "payment.captured") {
       const payment = event.payload.payment.entity
       const orderId = payment.order_id
-      const notes = payment.notes || {}
 
       const { data: order } = await supabaseAdmin
         .from("orders")
@@ -43,18 +42,26 @@ export async function POST(req: Request) {
           .eq("razorpay_order_id", orderId)
 
         if (order.pack === "unlimited") {
-          await supabaseAdmin
+          const { error: activateError } = await supabaseAdmin
             .from("users")
             .update({ subscription_active: true })
             .eq("id", order.user_id)
+
+          if (activateError) {
+            console.error("Webhook activate unlimited error:", activateError)
+          }
         } else {
           const { PACKS } = await import("@/lib/razorpay")
           const packConfig = PACKS[order.pack as keyof typeof PACKS]
           if (packConfig && packConfig.credits) {
-            await supabaseAdmin.rpc("add_credits", {
+            const { error: creditsError } = await supabaseAdmin.rpc("add_credits", {
               p_user_id: order.user_id,
               p_credits: packConfig.credits,
             })
+
+            if (creditsError) {
+              console.error("Webhook add credits error:", creditsError)
+            }
           }
         }
       }

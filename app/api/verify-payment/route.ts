@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { PACKS } from "@/lib/razorpay"
+import { razorpay, PACKS } from "@/lib/razorpay"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import crypto from "crypto"
 
@@ -33,30 +33,72 @@ export async function POST(req: Request) {
       .eq("razorpay_order_id", razorpay_order_id)
       .single()
 
-    if (!order) {
+    if (order) {
+      const { error: updateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          razorpay_payment_id,
+          status: "captured",
+        })
+        .eq("razorpay_order_id", razorpay_order_id)
+
+      if (updateError) {
+        console.error("Update order error:", updateError)
+      }
+    } else {
+      console.warn(
+        "Order not found in DB for razorpay_order_id:",
+        razorpay_order_id,
+        "- falling back to Razorpay API"
+      )
+    }
+
+    let userId: string | null = order?.user_id ?? null
+    let pack: string | null = order?.pack ?? null
+
+    if (!userId || !pack) {
+      try {
+        const fetchedOrder = await razorpay.orders.fetch(razorpay_order_id)
+        const notes = fetchedOrder.notes || {}
+        userId = notes.user_id || null
+        pack = notes.pack || null
+      } catch (fetchErr) {
+        console.error("Razorpay order fetch failed:", fetchErr)
+      }
+    }
+
+    if (!userId || !pack) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        razorpay_payment_id,
-        status: "captured",
-      })
-      .eq("razorpay_order_id", razorpay_order_id)
-
-    if (order.pack === "unlimited") {
-      await supabaseAdmin
+    if (pack === "unlimited") {
+      const { error: activateError } = await supabaseAdmin
         .from("users")
         .update({ subscription_active: true })
-        .eq("id", order.user_id)
+        .eq("id", userId)
+
+      if (activateError) {
+        console.error("Activate unlimited error:", activateError)
+        return NextResponse.json(
+          { error: `Failed to activate: ${activateError.message}` },
+          { status: 500 }
+        )
+      }
     } else {
-      const packConfig = PACKS[order.pack as keyof typeof PACKS]
+      const packConfig = PACKS[pack as keyof typeof PACKS]
       if (packConfig && packConfig.credits) {
-        await supabaseAdmin.rpc("add_credits", {
-          p_user_id: order.user_id,
+        const { error: creditsError } = await supabaseAdmin.rpc("add_credits", {
+          p_user_id: userId,
           p_credits: packConfig.credits,
         })
+
+        if (creditsError) {
+          console.error("Add credits error:", creditsError)
+          return NextResponse.json(
+            { error: `Failed to add credits: ${creditsError.message}` },
+            { status: 500 }
+          )
+        }
       }
     }
 

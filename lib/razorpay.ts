@@ -25,7 +25,7 @@ export const PACKS = {
   "4": { amount: 19900, credits: 4, label: "4 Songs", price: "₹199" },
   "10": { amount: 49900, credits: 10, label: "10 Songs", price: "₹499" },
   "25": { amount: 124900, credits: 25, label: "25 Songs", price: "₹1,249" },
-  "unlimited": { amount: 299900, credits: -1, label: "Unlimited", price: "₹2,999/mo" },
+  "unlimited": { amount: 299900, credits: -1, label: "Unlimited", price: "₹2,999" },
 } as const
 
 export type PackType = keyof typeof PACKS

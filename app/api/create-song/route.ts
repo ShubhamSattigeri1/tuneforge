@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin()
     const { data: user } = await supabaseAdmin
       .from("users")
-      .select("id, credits, subscription_active, subscription_end")
+      .select("id, credits, subscription_active")
       .eq("email", session.user.email)
       .single()
 
@@ -28,12 +28,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const hasActiveSub = user.subscription_active && new Date(user.subscription_end) > new Date()
-    if (!hasActiveSub && (user.credits < 1)) {
+    if (!user.subscription_active && user.credits < 1) {
       return NextResponse.json({ error: "Not enough credits. Buy more credits in the dashboard." }, { status: 402 })
     }
 
-    if (!hasActiveSub) {
+    if (!user.subscription_active) {
       await supabaseAdmin.rpc("deduct_credit", { p_user_id: user.id })
     }
 

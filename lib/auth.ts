@@ -9,7 +9,6 @@ declare module "next-auth" {
       id: string
       credits: number
       unlimited: boolean
-      unlimited_expiry?: string
     } & DefaultSession["user"]
   }
 }
@@ -28,7 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { data } = await supabaseAdmin
           .from("users")
-          .select("id, credits, subscription_active, subscription_end")
+          .select("id, credits, subscription_active")
           .eq("email", session.user.email)
           .single()
 
@@ -36,7 +35,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           session.user.id = data.id
           session.user.credits = data.credits ?? 0
           session.user.unlimited = data.subscription_active ?? false
-          session.user.unlimited_expiry = data.subscription_end
         }
       }
       return session

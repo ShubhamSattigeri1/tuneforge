@@ -14,19 +14,17 @@ export async function GET() {
     const supabaseAdmin = getSupabaseAdmin()
     const { data: user } = await supabaseAdmin
       .from("users")
-      .select("credits, subscription_active, subscription_end")
+      .select("credits, subscription_active")
       .eq("email", session.user.email)
       .single()
 
     if (!user) {
-      return NextResponse.json({ credits: 0, subscription_active: false })
+      return NextResponse.json({ credits: 0, unlimited: false })
     }
 
-    const hasActiveSub = user.subscription_active && new Date(user.subscription_end) > new Date()
-
     return NextResponse.json({
-      credits: hasActiveSub ? Infinity : user.credits || 0,
-      subscription_active: hasActiveSub,
+      credits: user.subscription_active ? Infinity : user.credits || 0,
+      unlimited: user.subscription_active,
     })
   } catch (err) {
     console.error("Credits fetch error:", err)

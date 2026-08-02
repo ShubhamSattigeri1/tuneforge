@@ -42,41 +42,21 @@ export async function POST(req: Request) {
           })
           .eq("razorpay_order_id", orderId)
 
-        const { PACKS } = await import("@/lib/razorpay")
-        const packConfig = PACKS[order.pack as keyof typeof PACKS]
-        if (packConfig && packConfig.credits) {
-          await supabaseAdmin.rpc("add_credits", {
-            p_user_id: order.user_id,
-            p_credits: packConfig.credits,
-          })
+        if (order.pack === "unlimited") {
+          await supabaseAdmin
+            .from("users")
+            .update({ subscription_active: true })
+            .eq("id", order.user_id)
+        } else {
+          const { PACKS } = await import("@/lib/razorpay")
+          const packConfig = PACKS[order.pack as keyof typeof PACKS]
+          if (packConfig && packConfig.credits) {
+            await supabaseAdmin.rpc("add_credits", {
+              p_user_id: order.user_id,
+              p_credits: packConfig.credits,
+            })
+          }
         }
-      }
-    }
-
-    if (event.event === "subscription.charged") {
-      const sub = event.payload.subscription.entity
-      const notes = sub.notes || {}
-
-      if (notes.pack === "unlimited" && notes.user_id) {
-        await supabaseAdmin
-          .from("users")
-          .update({
-            subscription_active: true,
-            subscription_end: new Date(Date.now() + 30 * 86400000).toISOString(),
-          })
-          .eq("id", notes.user_id)
-      }
-    }
-
-    if (event.event === "subscription.cancelled" || event.event === "subscription.completed") {
-      const sub = event.payload.subscription.entity
-      const notes = sub.notes || {}
-
-      if (notes.user_id) {
-        await supabaseAdmin
-          .from("users")
-          .update({ subscription_active: false })
-          .eq("id", notes.user_id)
       }
     }
 

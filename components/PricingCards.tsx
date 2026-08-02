@@ -3,13 +3,31 @@
 import { PACKS } from "@/lib/razorpay"
 import { Sparkles, Check } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+
+function loadCheckoutScript() {
+  return new Promise<void>((resolve, reject) => {
+    if ((window as any).Razorpay) {
+      resolve()
+      return
+    }
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("Failed to load Razorpay checkout"))
+    document.body.appendChild(script)
+  })
+}
 
 export function PricingCards() {
   const { data: session } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadCheckoutScript().catch(() => {})
+  }, [])
 
   const handleBuy = async (pack: string) => {
     if (!session) {
@@ -27,45 +45,26 @@ export function PricingCards() {
       })
       const data = await res.json()
 
-      if (data.type === "subscription") {
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          subscription_id: data.id,
-          name: "TuneForge",
-          description: "Unlimited Subscription",
-          handler: async function (response: any) {
-            await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
-            })
-            router.refresh()
-          },
-          prefill: { email: session.user?.email },
-          theme: { color: "#6C28D2" },
-        }
-        const rzp = new (window as any).Razorpay(options)
-        rzp.open()
-      } else {
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          order_id: data.id,
-          name: "TuneForge",
-          description: `${PACKS[pack as keyof typeof PACKS].label}`,
-          handler: async function (response: any) {
-            await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
-            })
-            router.refresh()
-          },
-          prefill: { email: session.user?.email },
-          theme: { color: "#6C28D2" },
-        }
-        const rzp = new (window as any).Razorpay(options)
-        rzp.open()
+      await loadCheckoutScript()
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        order_id: data.id,
+        name: "TuneForge",
+        description: `${PACKS[pack as keyof typeof PACKS].label}`,
+        handler: async function (response: any) {
+          await fetch("/api/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(response),
+          })
+          router.refresh()
+        },
+        prefill: { email: session.user?.email },
+        theme: { color: "#6C28D2" },
       }
+      const rzp = new (window as any).Razorpay(options)
+      rzp.open()
     } catch (err) {
       console.error(err)
     } finally {
@@ -113,9 +112,9 @@ export function PricingCards() {
               {isUnlimited ? (
                 <>
                   <Feature text="Unlimited songs" />
+                  <Feature text="Lifetime access" />
                   <Feature text="Priority generation" />
                   <Feature text="Commercial license" />
-                  <Feature text="MP3 + WAV download" />
                 </>
               ) : (
                 <>
@@ -135,7 +134,7 @@ export function PricingCards() {
                   : "border border-border text-muted hover:border-primary hover:text-white"
               } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {isLoading ? "Processing..." : isUnlimited ? "Subscribe" : "Buy Now"}
+              {isLoading ? "Processing..." : "Buy Now"}
             </button>
           </div>
         )

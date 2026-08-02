@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { razorpay, PACKS } from "@/lib/razorpay"
+import { PACKS } from "@/lib/razorpay"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import crypto from "crypto"
 
@@ -45,12 +45,19 @@ export async function POST(req: Request) {
       })
       .eq("razorpay_order_id", razorpay_order_id)
 
-    const packConfig = PACKS[order.pack as keyof typeof PACKS]
-    if (packConfig && packConfig.credits) {
-      await supabaseAdmin.rpc("add_credits", {
-        p_user_id: order.user_id,
-        p_credits: packConfig.credits,
-      })
+    if (order.pack === "unlimited") {
+      await supabaseAdmin
+        .from("users")
+        .update({ subscription_active: true })
+        .eq("id", order.user_id)
+    } else {
+      const packConfig = PACKS[order.pack as keyof typeof PACKS]
+      if (packConfig && packConfig.credits) {
+        await supabaseAdmin.rpc("add_credits", {
+          p_user_id: order.user_id,
+          p_credits: packConfig.credits,
+        })
+      }
     }
 
     return NextResponse.json({ success: true })

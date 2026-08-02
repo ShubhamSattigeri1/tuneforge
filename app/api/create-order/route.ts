@@ -29,32 +29,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    if (pack === "unlimited") {
-      const planId = process.env.RAZORPAY_UNLIMITED_PLAN_ID
-      if (!planId) {
-        return NextResponse.json({ error: "Subscription plan not configured" }, { status: 500 })
-      }
-
-      const subscription = await razorpay.subscriptions.create({
-        plan_id: planId,
-        customer_notify: 1,
-        total_count: 12,
-        notes: { user_id: user.id, pack: "unlimited" },
-      })
-
-      await supabaseAdmin.from("orders").insert({
-        user_id: user.id,
-        razorpay_order_id: subscription.id,
-        amount: packConfig.amount,
-        currency: "INR",
-        pack,
-        status: "created",
-        type: "subscription",
-      })
-
-      return NextResponse.json({ id: subscription.id, type: "subscription" })
-    }
-
     const order = await razorpay.orders.create({
       amount: packConfig.amount,
       currency: "INR",
@@ -72,7 +46,7 @@ export async function POST(req: Request) {
       type: "one_time",
     })
 
-    return NextResponse.json({ id: order.id, amount: order.amount, type: "one_time" })
+    return NextResponse.json({ id: order.id, amount: order.amount })
   } catch (err) {
     console.error("Create order error:", err)
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 })

@@ -110,7 +110,7 @@ export default function DashboardPage() {
           Need More Credits?
         </h2>
         <p className="text-muted text-sm mb-6">
-          Top up your account with a credit pack or subscribe for unlimited generation.
+          Top up your account with a credit pack or unlock unlimited generation with a one-time purchase.
         </p>
         <PricingCards />
       </section>

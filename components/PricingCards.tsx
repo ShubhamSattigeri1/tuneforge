@@ -28,7 +28,24 @@ export function PricingCards() {
       const data = await res.json()
 
       if (data.type === "subscription") {
-        window.open(`https://rzp.io/i/${data.id}`, "_blank")
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          subscription_id: data.id,
+          name: "TuneForge",
+          description: "Unlimited Subscription",
+          handler: async function (response: any) {
+            await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            })
+            router.refresh()
+          },
+          prefill: { email: session.user?.email },
+          theme: { color: "#6C28D2" },
+        }
+        const rzp = new (window as any).Razorpay(options)
+        rzp.open()
       } else {
         const options = {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,

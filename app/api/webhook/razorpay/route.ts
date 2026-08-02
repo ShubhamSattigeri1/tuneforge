@@ -8,9 +8,10 @@ export async function POST(req: Request) {
   try {
     const text = await req.text()
     const signature = req.headers.get("x-razorpay-signature")
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET
 
     const expectedSign = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .createHmac("sha256", webhookSecret!)
       .update(text)
       .digest("hex")
 
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
           })
           .eq("razorpay_order_id", orderId)
 
-        const { razorpay: _, PACKS } = await import("@/lib/razorpay")
+        const { PACKS } = await import("@/lib/razorpay")
         const packConfig = PACKS[order.pack as keyof typeof PACKS]
         if (packConfig && packConfig.credits) {
           await supabaseAdmin.rpc("add_credits", {
@@ -59,7 +60,22 @@ export async function POST(req: Request) {
       if (notes.pack === "unlimited" && notes.user_id) {
         await supabaseAdmin
           .from("users")
-          .update({ subscription_active: true, subscription_end: new Date(Date.now() + 30 * 86400000).toISOString() })
+          .update({
+            subscription_active: true,
+            subscription_end: new Date(Date.now() + 30 * 86400000).toISOString(),
+          })
+          .eq("id", notes.user_id)
+      }
+    }
+
+    if (event.event === "subscription.cancelled" || event.event === "subscription.completed") {
+      const sub = event.payload.subscription.entity
+      const notes = sub.notes || {}
+
+      if (notes.user_id) {
+        await supabaseAdmin
+          .from("users")
+          .update({ subscription_active: false })
           .eq("id", notes.user_id)
       }
     }

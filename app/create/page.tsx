@@ -57,7 +57,7 @@ export default function CreatePage() {
         return
       }
 
-      router.push(`/generating/${data.id}`)
+      router.push(`/song/${data.id}?generating=true`)
     } catch {
       setError("Network error. Please try again.")
       setLoading(false)

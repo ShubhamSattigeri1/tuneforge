@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     const order = await razorpay.orders.create({
       amount: packConfig.amount,
       currency: "INR",
-      receipt: `${user.id}-${Date.now()}`,
+      receipt: `${user.id.slice(0, 8)}-${Date.now()}`,
       notes: { user_id: user.id, pack },
     })
 
@@ -57,8 +57,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ id: order.id, amount: order.amount })
   } catch (err) {
     console.error("Create order error:", err)
+    const anyErr = err as {
+      message?: string
+      error?: { description?: string }
+      statusCode?: number
+    }
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to create order" },
+      {
+        error:
+          anyErr.error?.description ||
+          anyErr.message ||
+          "Failed to create order",
+      },
       { status: 500 }
     )
   }

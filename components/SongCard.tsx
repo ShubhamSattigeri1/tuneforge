@@ -2,6 +2,7 @@
 
 import { Play, Download, Music } from "lucide-react"
 import Link from "next/link"
+import { ShareButton } from "@/components/ShareButton"
 
 type SongCardProps = {
   id: string
@@ -36,16 +37,19 @@ export function SongCard({ id, title, genre, mood, created_at, file_url }: SongC
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className="text-xs text-muted">{timeAgo}</span>
-          {file_url && (
-            <a
-              href={file_url}
-              download
-              onClick={(e) => e.stopPropagation()}
-              className="p-1.5 rounded-lg hover:bg-surface-light text-muted hover:text-white transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </a>
-          )}
+          <div className="flex items-center gap-0.5">
+            <ShareButton songId={id} fileUrl={file_url} title={title} compact />
+            {file_url && (
+              <a
+                href={file_url}
+                download
+                onClick={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-lg hover:bg-surface-light text-muted hover:text-white transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </Link>

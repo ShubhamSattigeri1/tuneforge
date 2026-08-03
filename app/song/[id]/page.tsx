@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from "react"
 import { Play, Pause, Download, ArrowLeft, Loader2, Clock, Music, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Waveform } from "@/components/Waveform"
+import { ShareButton } from "@/components/ShareButton"
 
 type SongData = {
   id: string
@@ -191,14 +192,17 @@ export default function SongPage() {
             </div>
           </div>
           {song.file_url && (
-            <a
-              href={song.file_url}
-              download
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm text-muted hover:text-white hover:border-primary transition-all"
-            >
-              <Download className="w-4 h-4" />
-              Download
-            </a>
+            <div className="flex items-center gap-2">
+              <ShareButton songId={song.id} fileUrl={song.file_url} title={song.title} />
+              <a
+                href={song.file_url}
+                download
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm text-muted hover:text-white hover:border-primary transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </a>
+            </div>
           )}
         </div>
 

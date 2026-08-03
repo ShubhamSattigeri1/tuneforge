@@ -19,9 +19,9 @@ export function SongCard({ id, title, genre, mood, created_at, file_url }: SongC
   return (
     <Link
       href={`/song/${id}`}
-      className="group rounded-xl border border-border bg-surface hover:border-primary/30 transition-all overflow-hidden"
+      className="group rounded-xl border border-border bg-surface hover:border-primary/30 transition-all"
     >
-      <div className="aspect-square bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center relative">
+      <div className="aspect-square bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center relative overflow-hidden rounded-t-xl">
         <Music className="w-12 h-12 text-muted/30" />
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
           <div className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center">

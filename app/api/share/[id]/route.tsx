@@ -11,7 +11,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://tuneforge-kohl.ver
 
 const FONTS_DIR = path.join(process.cwd(), "lib", "fonts")
 
-function loadFont(file: string): ArrayBuffer {
+function loadFont(file: string): Buffer {
   return fs.readFileSync(path.join(FONTS_DIR, file))
 }
 
@@ -57,7 +57,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const waveform = buildWaveform()
 
-    return new ImageResponse(
+    const image = new ImageResponse(
       (
         <div
           style={{
@@ -182,6 +182,15 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         ],
       }
     )
+
+    const buffer = await new Response(image.body).arrayBuffer()
+
+    return new Response(buffer, {
+      headers: {
+        "content-type": "image/png",
+        "cache-control": "public, max-age=0, must-revalidate",
+      },
+    })
   } catch (err) {
     console.error("Share card error:", err)
     return new Response("Failed to generate card", { status: 500 })
@@ -212,14 +221,16 @@ function Glow({
   bottom?: number
   color: string
 }) {
+  const pos: Record<string, number> = {}
+  if (top !== undefined) pos.top = top
+  if (left !== undefined) pos.left = left
+  if (right !== undefined) pos.right = right
+  if (bottom !== undefined) pos.bottom = bottom
   return (
     <div
       style={{
         position: "absolute",
-        top,
-        left,
-        right,
-        bottom,
+        ...pos,
         width: 520,
         height: 520,
         borderRadius: 999,
